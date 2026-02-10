@@ -51,32 +51,32 @@
             <section id="tab-courses" class="card">
             <h2>Курсы</h2>
             <div class="row" style="gap:10px;">
-                <button id="refreshCourses" class="btn secondary">Обновить</button>
+                <button id="refreshCourses" class="btn secondary">Мои Курсы</button>
                 <button id="openCatalogBtn" class="btn secondary">Открыть каталог</button>
             </div>
 
             <div class="courses-2col mt">
-                <!-- LEFT: My courses -->
-                <div>
-                <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
+            <!-- LEFT: My courses -->
+                <div id="myCoursesView">
+                    <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
                     <h3 style="margin:0;">Мои курсы</h3>
-
-                    <div class="row" style="gap:8px; flex-wrap:wrap;">
-                    <button id="myFilterAll" class="btn secondary">Все</button>
-                    <button id="myFilterActive" class="btn secondary">Активные</button>
-                    <button id="myFilterCompleted" class="btn secondary">Завершенные</button>
+                    
+                        <div class="row" style="gap:8px; flex-wrap:wrap;">
+                            <button id="myFilterAll" class="btn secondary">Все</button>
+                            <button id="myFilterActive" class="btn secondary">Активные</button>
+                            <button id="myFilterCompleted" class="btn secondary">Завершенные</button>
+                        </div>
                     </div>
+
+                    <div id="myCoursesList" class="list mt"></div>
                 </div>
+            </div>
+
 
                 <div id="myCoursesList" class="list mt"></div>
                 </div>
 
-                <!-- RIGHT: small catalog preview / info -->
-                <div class="catalog-side card" style="padding:14px;">
-                <h3 style="margin-top:0;">Каталог курсов</h3>
-                <div class="muted">Тут курсы, доступные всем или по доступам. Нажми “Открыть каталог”.</div>
-                <button class="btn mt" id="openCatalogBtn2">Открыть каталог</button>
-                </div>
+                
             </div>
 
             <!-- FULLSCREEN Catalog (Library) -->

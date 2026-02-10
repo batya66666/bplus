@@ -113,7 +113,7 @@ async def my_courses_full(session: AsyncSession = Depends(get_session), user=Dep
                 e.status = EnrollmentStatus.IN_PROGRESS.value
 
         result.append({
-            "course_id": c.id,
+            "id": c.id,
             "title": c.title,
             "description": c.description,
             "is_mandatory": c.is_mandatory,
@@ -125,42 +125,6 @@ async def my_courses_full(session: AsyncSession = Depends(get_session), user=Dep
 
     await session.commit()
     return result
-
-@router.get("/catalog", response_model=list[CourseCatalogOut])
-async def catalog(
-    session: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user),
-):
-    enrolls = (
-        await session.execute(select(Enrollment).where(Enrollment.user_id == user.id))
-    ).scalars().all()
-    enr_map = {e.course_id: e for e in enrolls}
-
-    if user.role == Role.ADMIN.value:
-        courses = (await session.execute(select(Course).order_by(Course.id.desc()))).scalars().all()
-    else:
-        assigned_ids = list(enr_map.keys())
-        cond = Course.is_public.is_(True)
-        if assigned_ids:
-            cond = or_(Course.is_public.is_(True), Course.id.in_(assigned_ids))
-        courses = (await session.execute(select(Course).where(cond).order_by(Course.id.desc()))).scalars().all()
-
-    out: list[CourseCatalogOut] = []
-    for c in courses:
-        e = enr_map.get(c.id)
-        out.append(CourseCatalogOut(
-            id=c.id,
-            title=c.title,
-            description=c.description,
-            is_mandatory=c.is_mandatory,
-            deadline_days=c.deadline_days,
-            is_public=c.is_public,
-            enrolled=e is not None,
-            status=e.status if e else None,
-            progress_percent=e.progress_percent if e else None,
-            deadline_at=e.deadline_at if e else None,
-        ))
-    return out
 
 @router.get("/{course_id}/lessons")
 async def list_lessons(course_id: int, session: AsyncSession = Depends(get_session), user=Depends(get_current_user)):

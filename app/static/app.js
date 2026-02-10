@@ -6,134 +6,135 @@ const tokenKey = "lms_token";
 const $ = (id) => document.getElementById(id);
 
 function toast(msg) {
-  const t = $("toast");
-  if (!t) return;
-  t.textContent = msg;
-  t.classList.remove("hidden");
-  setTimeout(() => t.classList.add("hidden"), 2600);
+    const t = $("toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.remove("hidden");
+    setTimeout(() => t.classList.add("hidden"), 2600);
 }
 
 function setToken(token) { localStorage.setItem(tokenKey, token); }
+
 function getToken() { return localStorage.getItem(tokenKey); }
+
 function clearToken() { localStorage.removeItem(tokenKey); }
 
 function escapeHtml(s) {
-  return (s ?? "")
-    .toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+    return (s ?? "")
+        .toString()
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
 }
 
 async function apiFetch(path, opts = {}) {
-  const headers = new Headers(opts.headers || {});
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+    const headers = new Headers(opts.headers || {});
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  if (opts.jsonBody !== undefined) {
-    headers.set("Content-Type", "application/json");
-    opts.body = JSON.stringify(opts.jsonBody);
-  }
-
-  const res = await fetch(API + path, {
-    method: opts.method || "GET",
-    headers,
-    body: opts.body,
-  });
-
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-
-  if (!res.ok) {
-    let err = `HTTP ${res.status}`;
-    if (data && data.detail !== undefined) {
-      err = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-    } else if (typeof data === "string" && data.trim()) {
-      err = data;
+    if (opts.jsonBody !== undefined) {
+        headers.set("Content-Type", "application/json");
+        opts.body = JSON.stringify(opts.jsonBody);
     }
-    throw new Error(err);
-  }
-  return data;
+
+    const res = await fetch(API + path, {
+        method: opts.method || "GET",
+        headers,
+        body: opts.body,
+    });
+
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+    if (!res.ok) {
+        let err = `HTTP ${res.status}`;
+        if (data && data.detail !== undefined) {
+            err = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+        } else if (typeof data === "string" && data.trim()) {
+            err = data;
+        }
+        throw new Error(err);
+    }
+    return data;
 }
 
 function showLogin(isLogin) {
-  $("loginView")?.classList.toggle("hidden", !isLogin);
-  $("appView")?.classList.toggle("hidden", isLogin);
-  $("logoutBtn")?.classList.toggle("hidden", isLogin);
+    $("loginView") ?.classList.toggle("hidden", !isLogin);
+    $("appView") ?.classList.toggle("hidden", isLogin);
+    $("logoutBtn") ?.classList.toggle("hidden", isLogin);
 }
 
 function renderList(el, items, renderItem) {
-  if (!el) return;
-  el.innerHTML = "";
-  if (!items || items.length === 0) {
-    el.innerHTML = `<div class="item"><div class="muted">Пусто</div></div>`;
-    return;
-  }
-  for (const it of items) el.appendChild(renderItem(it));
+    if (!el) return;
+    el.innerHTML = "";
+    if (!items || items.length === 0) {
+        el.innerHTML = `<div class="item"><div class="muted">Пусто</div></div>`;
+        return;
+    }
+    for (const it of items) el.appendChild(renderItem(it));
 }
 
 function selectTab(name) {
-  document.querySelectorAll(".tab").forEach(b =>
-    b.classList.toggle("active", b.dataset.tab === name)
-  );
+    document.querySelectorAll(".tab").forEach(b =>
+        b.classList.toggle("active", b.dataset.tab === name)
+    );
 
-  ["courses", "standups", "documents", "profile", "admin"].forEach(t => {
-    $("tab-" + t)?.classList.toggle("hidden", t !== name);
-  });
+    ["courses", "standups", "documents", "profile", "admin"].forEach(t => {
+        $("tab-" + t) ?.classList.toggle("hidden", t !== name);
+    });
 }
-
 // ---------- ME ----------
 let meCache = null;
 
 async function loadMe() {
-  const me = await apiFetch("/users/me");
-  meCache = me;
+    const me = await apiFetch("/users/me");
+    meCache = me;
 
-  const adminBtn = $("adminTabBtn");
-  if (adminBtn) {
-    if (me.role === "ADMIN") adminBtn.classList.remove("hidden");
-    else adminBtn.classList.add("hidden");
-  }
+    const adminBtn = $("adminTabBtn");
+    if (adminBtn) {
+        if (me.role === "ADMIN") adminBtn.classList.remove("hidden");
+        else adminBtn.classList.add("hidden");
+    }
 
-  const badge = $("meBadge");
-  if (badge) {
-    badge.textContent = `${me.full_name} • ${me.role}`;
-    badge.classList.remove("hidden");
-  }
+    const badge = $("meBadge");
+    if (badge) {
+        badge.textContent = `${me.full_name} • ${me.role}`;
+        badge.classList.remove("hidden");
+    }
 
-  $("profileJson") && ($("profileJson").textContent = JSON.stringify(me, null, 2));
-  return me;
+    $("profileJson") && ($("profileJson").textContent = JSON.stringify(me, null, 2));
+    return me;
 }
 
 // ---------- COURSES helpers ----------
 function fmtDate(iso) {
-  if (!iso) return "-";
-  try { return new Date(iso).toLocaleDateString(); } catch { return iso; }
+    if (!iso) return "-";
+    try { return new Date(iso).toLocaleDateString(); } catch { return iso; }
 }
 
 function statusRu(s) {
-  if (s === "ASSIGNED") return "Назначен";
-  if (s === "IN_PROGRESS") return "В процессе";
-  if (s === "COMPLETED") return "Завершён";
-  return s || "-";
+    if (s === "ASSIGNED") return "Назначен";
+    if (s === "IN_PROGRESS") return "В процессе";
+    if (s === "COMPLETED") return "Завершён";
+    return s || "-";
 }
 
 function isOverdue(deadlineIso, status) {
-  if (!deadlineIso) return false;
-  if (status === "COMPLETED") return false;
-  const d = new Date(deadlineIso);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getTime() < Date.now();
+    if (!deadlineIso) return false;
+    if (status === "COMPLETED") return false;
+    const d = new Date(deadlineIso);
+    if (Number.isNaN(d.getTime())) return false;
+    return d.getTime() < Date.now();
 }
 
 // ---------- COURSES: start + API ----------
 async function loadCatalogCourses() {
-  return await apiFetch("/courses/catalog");
+    return await apiFetch("/courses/catalog");
 }
 
 async function startCourse(courseId) {
-  await apiFetch(`/courses/${courseId}/start`, { method: "POST" });
+    await apiFetch(`/courses/${courseId}/start`, { method: "POST" });
 }
 
 // ---------- COURSES: My courses (filters) ----------
@@ -141,64 +142,64 @@ let myCoursesCache = [];
 let myFilter = "ALL"; // ALL | ACTIVE | COMPLETED
 
 function filterMyCourses(list) {
-  if (myFilter === "ALL") return list;
-  if (myFilter === "COMPLETED") return list.filter(c => c.status === "COMPLETED");
-  // ACTIVE = ASSIGNED + IN_PROGRESS
-  return list.filter(c => c.status === "ASSIGNED" || c.status === "IN_PROGRESS");
+    if (myFilter === "ALL") return list;
+    if (myFilter === "COMPLETED") return list.filter(c => c.status === "COMPLETED");
+    // ACTIVE = ASSIGNED + IN_PROGRESS
+    return list.filter(c => c.status === "ASSIGNED" || c.status === "IN_PROGRESS");
 }
 
 function setMyFilter(name) {
-  myFilter = name;
+    myFilter = name;
 
-  const map = {
-    ALL: $("myFilterAll"),
-    ACTIVE: $("myFilterActive"),
-    COMPLETED: $("myFilterCompleted"),
-  };
+    const map = {
+        ALL: $("myFilterAll"),
+        ACTIVE: $("myFilterActive"),
+        COMPLETED: $("myFilterCompleted"),
+    };
 
-  Object.entries(map).forEach(([k, btn]) => {
-    if (!btn) return;
-    btn.classList.toggle("activeFilter", k === myFilter);
-  });
+    Object.entries(map).forEach(([k, btn]) => {
+        if (!btn) return;
+        btn.classList.toggle("activeFilter", k === myFilter);
+    });
 
-  renderMyCourses();
+    renderMyCourses();
 }
 
 function renderMyCourses() {
-  const list = filterMyCourses(myCoursesCache);
+    const list = filterMyCourses(myCoursesCache);
 
-  renderList($("myCoursesList"), list, (c) => {
-    const d = document.createElement("div");
-    
-    // Determine accent class
-    let accentClass = "item";
-    const overdue = isOverdue(c.deadline_at, c.status);
-    
-    if (overdue) {
-      accentClass += " accent-red";
-    } else if (c.status === "COMPLETED") {
-      accentClass += " accent-green";
-    } else if (c.status === "IN_PROGRESS") {
-      accentClass += " accent-blue";
-    } else if (c.status === "ASSIGNED") {
-      accentClass += " accent-yellow";
-    }
-    
-    d.className = accentClass;
+    renderList($("myCoursesList"), list, (c) => {
+        const d = document.createElement("div");
 
-    const lessons = c.lessons || [];
-    const lessonsHtml = lessons.length
-      ? lessons.map(l => {
-          const done = l.is_completed ? "✅" : "";
-          return `<div class="muted">${l.order}. ${escapeHtml(l.title)} ${done}</div>`;
-        }).join("")
-      : `<div class="muted">Уроки пока не добавлены</div>`;
+        // Determine accent class
+        let accentClass = "item";
+        const overdue = isOverdue(c.deadline_at, c.status);
 
-    let btnHtml = "";
-    if (c.status === "ASSIGNED") btnHtml = `<button class="btn startBtn">Начать обучение</button>`;
-    else btnHtml = `<button class="btn secondary openBtn">Открыть курс</button>`;
+        if (overdue) {
+            accentClass += " accent-red";
+        } else if (c.status === "COMPLETED") {
+            accentClass += " accent-green";
+        } else if (c.status === "IN_PROGRESS") {
+            accentClass += " accent-blue";
+        } else if (c.status === "ASSIGNED") {
+            accentClass += " accent-yellow";
+        }
 
-    d.innerHTML = `
+        d.className = accentClass;
+
+        const lessons = c.lessons || [];
+        const lessonsHtml = lessons.length ?
+            lessons.map(l => {
+                const done = l.is_completed ? "✅" : "";
+                return `<div class="muted">${l.order}. ${escapeHtml(l.title)} ${done}</div>`;
+            }).join("") :
+            `<div class="muted">Уроки пока не добавлены</div>`;
+
+        let btnHtml = "";
+        if (c.status === "ASSIGNED") btnHtml = `<button class="btn startBtn">Начать обучение</button>`;
+        else btnHtml = `<button class="btn secondary openBtn">Открыть курс</button>`;
+
+        d.innerHTML = `
       <div class="title">${escapeHtml(c.title)} <span class="badge">${statusRu(c.status)}</span></div>
       <div class="muted">${escapeHtml(c.description || "")}</div>
       <div class="muted">Прогресс: ${c.progress_percent ?? 0}% • Дедлайн: ${fmtDate(c.deadline_at)}</div>
@@ -208,73 +209,78 @@ function renderMyCourses() {
       </div>
     `;
 
-    const startBtn = d.querySelector(".startBtn");
-    if (startBtn) startBtn.addEventListener("click", async () => {
-      try {
-        await startCourse(c.id);
-        toast("Обучение начато");
-        await loadMyCourses(); // обновим статус
-        openPlayerStub({ ...c, status: "IN_PROGRESS" }); // откроем плеер-заглушку
-      } catch (e) {
-        toast(e.message);
-      }
+        const startBtn = d.querySelector(".startBtn");
+        if (startBtn) startBtn.addEventListener("click", async() => {
+            try {
+                await startCourse(c.id);
+                toast("Обучение начато");
+                await loadMyCourses(); // обновим статус
+                openPlayerStub({...c, status: "IN_PROGRESS" }, "MY"); // откроем плеер-заглушку
+            } catch (e) {
+                toast(e.message);
+            }
+        });
+
+        const openBtn = d.querySelector(".openBtn");
+        if (openBtn) openBtn.addEventListener("click", () => openPlayerStub(c, "MY"));
+
+
+        return d;
     });
-
-    const openBtn = d.querySelector(".openBtn");
-    if (openBtn) openBtn.addEventListener("click", () => openPlayerStub(c));
-
-    return d;
-  });
 }
 
 async function loadMyCourses() {
-  const list = await apiFetch("/courses/my_full");
-  myCoursesCache = list || [];
-  renderMyCourses();
+    const list = await apiFetch("/courses/my_full");
+    myCoursesCache = list || [];
+    renderMyCourses();
 }
 
 // ---------- COURSES: Catalog (Library) ----------
 let libraryCoursesCache = [];
 
 function dedupById(list) {
-  const seen = new Set();
-  const uniq = [];
-  for (const c of (list || [])) {
-    if (seen.has(c.id)) continue;
-    seen.add(c.id);
-    uniq.push(c);
-  }
-  return uniq;
+    const seen = new Set();
+    const uniq = [];
+    for (const c of(list || [])) {
+        if (seen.has(c.id)) continue;
+        seen.add(c.id);
+        uniq.push(c);
+    }
+    return uniq;
 }
 
 async function loadCatalog() {
-  const cat = await loadCatalogCourses();
-  libraryCoursesCache = dedupById(cat);
-  renderCatalogGrid();
+    const cat = await loadCatalogCourses();
+    libraryCoursesCache = dedupById(cat);
+    renderCatalogGrid();
 }
 
 function renderCatalogGrid() {
-  const grid = $("catalogCoursesGrid");
-  if (!grid) return;
+    const grid = $("catalogCoursesGrid");
+    if (!grid) return;
 
-  grid.innerHTML = "";
-  const list = libraryCoursesCache || [];
+    grid.innerHTML = "";
+    const list = libraryCoursesCache || [];
 
-  if (!list.length) {
-    grid.innerHTML = `<div class="item"><div class="muted">Пусто</div></div>`;
-    return;
-  }
+    if (!list.length) {
+        grid.innerHTML = `<div class="item"><div class="muted">Пусто</div></div>`;
+        return;
+    }
 
-  for (const c of list) {
-    const card = document.createElement("div");
-    const overdue = isOverdue(c.deadline_at, c.status);
-    card.className = "course-card" + (overdue ? " overdue" : "");
+    for (const c of list) {
+        const card = document.createElement("div");
+        const overdue = isOverdue(c.deadline_at, c.status);
+        card.className = "course-card" + (overdue ? " overdue" : "");
 
-    const progress = Math.max(0, Math.min(100, c.progress_percent ?? 0));
-    const deadlineText = c.deadline_at ? fmtDate(c.deadline_at) : "-";
-    const coverText = (c.title || "Курс").slice(0, 32);
+        const progress = Math.max(0, Math.min(100, c.progress_percent ?? 0));
+        const deadlineText = c.deadline_at ? fmtDate(c.deadline_at) : "-";
+        const coverText = (c.title || "Курс").slice(0, 32);
 
-    card.innerHTML = `
+        const btnHtml = c.enrolled ?
+            `<button class="btn secondary" disabled style="width:100%; margin-top:10px;">Вы записаны</button>` :
+            `<button class="btn primary enrollBtn" style="width:100%; margin-top:10px;">Записаться</button>`;
+
+        card.innerHTML = `
       <div class="course-cover"><div class="coverText">${escapeHtml(coverText)}</div></div>
       <div class="course-title">${escapeHtml(c.title)}</div>
       <div class="progress"><div style="width:${progress}%"></div></div>
@@ -282,65 +288,96 @@ function renderCatalogGrid() {
         <div>${statusRu(c.status)}</div>
         <div>Дедлайн: ${deadlineText}</div>
       </div>
+      ${btnHtml}
     `;
 
-    // DoD: клик по карточке -> заглушка плеера
-    card.addEventListener("click", () => openPlayerStub(c));
-    grid.appendChild(card);
-  }
+        // DoD: клик по карточке -> заглушка плеера
+        card.addEventListener("click", (e) => {
+            if (e.target.closest("button")) return;
+            openPlayerStub(c, "CATALOG");
+        });
+
+        const enrollBtn = card.querySelector(".enrollBtn");
+        if (enrollBtn) enrollBtn.addEventListener("click", async() => {
+            try {
+                await startCourse(c.id);
+                toast("Вы записались");
+                await loadCatalog();
+                loadMyCourses();
+            } catch (e) { toast(e.message); }
+        });
+
+        grid.appendChild(card);
+    }
+}
+
+// ---------- Courses views state ----------
+let lastView = "MY"; // MY | CATALOG
+
+function showMyCoursesView() {
+    $("myCoursesView") ?.classList.remove("hidden");
+    $("catalogView") ?.classList.add("hidden");
+    $("playerView") ?.classList.add("hidden");
+    lastView = "MY";
 }
 
 function openCatalog() {
-  $("catalogView")?.classList.remove("hidden");
-  $("playerView")?.classList.add("hidden");
-  loadCatalog().catch(e => toast(e.message));
+    $("myCoursesView") ?.classList.add("hidden");
+    $("catalogView") ?.classList.remove("hidden");
+    $("playerView") ?.classList.add("hidden");
+    lastView = "CATALOG";
+    loadCatalog().catch(e => toast(e.message));
 }
 
 function closeCatalog() {
-  $("catalogView")?.classList.add("hidden");
+    $("catalogView") ?.classList.add("hidden");
+    $("playerView") ?.classList.add("hidden");
+    $("myCoursesView") ?.classList.remove("hidden");
 }
 
-// ---------- Player stub ----------
-function openPlayerStub(course) {
-  // Показываем плеер, прячем каталог (если открыт)
-  $("catalogView")?.classList.add("hidden");
-  $("playerView")?.classList.remove("hidden");
 
-  $("playerTitle") && ($("playerTitle").textContent = course.title || "Плеер");
-  $("playerCourseId") && ($("playerCourseId").textContent = String(course.id));
+function openPlayerStub(course, from = "CATALOG") {
+    // from: "CATALOG" или "MY"
+    $("myCoursesView")?.classList.add("hidden");
+    $("catalogView")?.classList.add("hidden");
+
+    $("playerView") ?.classList.remove("hidden");
+    $("playerTitle") && ($("playerTitle").textContent = course.title || "Плеер");
+    $("playerCourseId") && ($("playerCourseId").textContent = String(course.id));
+
+    lastView = from;
 }
 
 function backToLibrary() {
-  // Возвратим к каталогу только если он был открыт кнопкой
-  // (если нет — просто скроем плеер)
-  $("playerView")?.classList.add("hidden");
-  $("catalogView")?.classList.remove("hidden");
+    if (lastView === "CATALOG") openCatalog();
+    else showMyCoursesView();
 }
+
 
 // ---------- STANDUPS ----------
 let editingReportId = null;
 
 function reportStatusRu(s) {
-  if (s === "PENDING") return "На проверке";
-  if (s === "REVISION") return "На доработке";
-  if (s === "ACCEPTED") return "Принят";
-  return s || "-";
+    if (s === "PENDING") return "На проверке";
+    if (s === "REVISION") return "На доработке";
+    if (s === "ACCEPTED") return "Принят";
+    return s || "-";
 }
 
 function setSendButtonMode() {
-  const btn = $("sendStandup");
-  if (!btn) return;
-  btn.textContent = editingReportId ? "Сдать доработку" : "Отправить отчёт";
+    const btn = $("sendStandup");
+    if (!btn) return;
+    btn.textContent = editingReportId ? "Сдать доработку" : "Отправить отчёт";
 }
 
 async function loadMyReports() {
-  const list = await apiFetch("/standups/my");
+    const list = await apiFetch("/standups/my");
 
-  renderList($("reportsList"), list, (r) => {
-    const d = document.createElement("div");
-    d.className = "item";
+    renderList($("reportsList"), list, (r) => {
+                const d = document.createElement("div");
+                d.className = "item";
 
-    d.innerHTML = `
+                d.innerHTML = `
       <div class="title">День ${r.day_number} • ${reportStatusRu(r.status)}</div>
       <div class="muted">Сделал: ${escapeHtml(r.text_done)}</div>
       <div class="muted">План: ${escapeHtml(r.text_plan)}</div>
@@ -636,6 +673,17 @@ $("loginBtn")?.addEventListener("click", async () => {
     toast(e.message || "Ошибка входа");
   }
 });
+$("myCoursesBtn")?.addEventListener("click", async (e) => {
+  e?.preventDefault();
+  try {
+    showMyCoursesView();     // прячет каталог и плеер, показывает myCoursesView
+    await loadMyCourses();   // перезагружает список
+    setMyFilter(myFilter);   // применяет текущий фильтр
+  } catch (e) {
+    toast(e.message);
+  }
+});
+
 
 $("logoutBtn")?.addEventListener("click", () => {
   clearToken();
@@ -651,12 +699,12 @@ $("myFilterActive")?.addEventListener("click", () => setMyFilter("ACTIVE"));
 $("myFilterCompleted")?.addEventListener("click", () => setMyFilter("COMPLETED"));
 
 // Catalog open/close
-$("openCatalogBtn")?.addEventListener("click", () => openCatalog());
-$("openCatalogBtn2")?.addEventListener("click", () => openCatalog());
-$("closeCatalogBtn")?.addEventListener("click", () => closeCatalog());
+$("openCatalogBtn")?.addEventListener("click", openCatalog);
+$("closeCatalogBtn")?.addEventListener("click", closeCatalog);
+$("backToLibrary")?.addEventListener("click", backToLibrary);
+
 
 // Player back
-$("backToLibrary")?.addEventListener("click", () => backToLibrary());
 
 document.querySelectorAll(".tab").forEach(b => {
   b.addEventListener("click", async () => {
@@ -665,6 +713,7 @@ document.querySelectorAll(".tab").forEach(b => {
 
     try {
       if (name === "courses") {
+        showMyCoursesView();
         setMyFilter(myFilter); // просто перерендер
         await loadMyCourses();
       }
@@ -713,6 +762,8 @@ $("assignBtn")?.addEventListener("click", () => assignCourseFromForm().catch(e =
     showLogin(false);
     await loadMe();
     selectTab("courses");
+
+    showMyCoursesView();
     setMyFilter("ALL");
     await loadMyCourses();
   } catch (e) {

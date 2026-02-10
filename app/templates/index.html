@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>LMS</title>
+    <link rel="stylesheet" href="/static/app.css" />
+</head>
+
+<body>
+    <div class="topbar">
+        <div class="brand">B+ LMS</div>
+        <div class="actions">
+            <span id="meBadge" class="badge hidden"></span>
+            <button id="logoutBtn" class="btn secondary hidden">Выйти</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="toast" class="toast hidden"></div>
+
+        <!-- LOGIN -->
+        <section id="loginView" class="card">
+            <h2>Вход</h2>
+            <div class="grid">
+                <label>
+          Email
+          <input id="email" type="email" placeholder="admin@local.test" />
+        </label>
+                <label>
+          Пароль
+          <input id="password" type="password" placeholder="admin12345" />
+        </label>
+            </div>
+            <button id="loginBtn" class="btn">Войти</button>
+            <p class="hint">Swagger: <a href="/docs" target="_blank">/docs</a></p>
+        </section>
+
+        <!-- APP -->
+        <section id="appView" class="hidden">
+
+            <div class="tabs">
+                <button class="tab active" data-tab="courses">Курсы</button>
+                <button class="tab" data-tab="standups">Стендапы</button>
+                <button class="tab" data-tab="documents">Регламенты</button>
+                <button class="tab" data-tab="profile">Профиль</button>
+                <button id="adminTabBtn" class="tab hidden" data-tab="admin">Админка</button>
+            </div>
+
+            <section id="tab-courses" class="card">
+            <h2>Курсы</h2>
+            <div class="row" style="gap:10px;">
+                <button id="refreshCourses" class="btn secondary">Мои Курсы</button>
+                <button id="openCatalogBtn" class="btn secondary">Открыть каталог</button>
+            </div>
+
+            <div class="courses-2col mt">
+            <!-- LEFT: My courses -->
+                <div id="myCoursesView">
+                    <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
+                    <h3 style="margin:0;">Мои курсы</h3>
+                    
+                        <div class="row" style="gap:8px; flex-wrap:wrap;">
+                            <button id="myFilterAll" class="btn secondary">Все</button>
+                            <button id="myFilterActive" class="btn secondary">Активные</button>
+                            <button id="myFilterCompleted" class="btn secondary">Завершенные</button>
+                        </div>
+                    </div>
+
+                    <div id="myCoursesList" class="list mt"></div>
+                </div>
+            </div>
+
+
+                <div id="myCoursesList" class="list mt"></div>
+                </div>
+
+                
+            </div>
+
+            <!-- FULLSCREEN Catalog (Library) -->
+            <section id="catalogView" class="card hidden" style="margin-top:16px;">
+                <div class="row" style="justify-content:space-between; align-items:center;">
+                <h2 style="margin:0;">Каталог курсов</h2>
+                <button id="closeCatalogBtn" class="btn secondary">Закрыть</button>
+                </div>
+
+                <div id="catalogCoursesGrid" class="course-grid"></div>
+            </section>
+
+            <!-- Player stub -->
+            <section id="playerView" class="card hidden" style="margin-top:16px;">
+                <div class="row" style="justify-content:space-between; align-items:center;">
+                <h2 id="playerTitle" style="margin:0;">Плеер</h2>
+                <button id="backToLibrary" class="btn secondary">Назад</button>
+                </div>
+                <div class="muted mt">Заглушка плеера по ТЗ</div>
+                <div class="item mt">
+                <div class="title">Плеер (пустая страница)</div>
+                <div class="muted">Тут будет видео/уроки. Сейчас это заглушка.</div>
+                <div class="muted mt">course_id: <span id="playerCourseId">-</span></div>
+                </div>
+            </section>
+        </section>
+
+
+            </section>
+
+            <section id="tab-standups" class="card hidden">
+                <h2>Стендап</h2>
+                <div class="grid3">
+                    <label>День <input id="dayNumber" type="number" min="1" value="1" /></label>
+                    <label>Сделал<textarea id="doneText" rows="3"></textarea></label>
+                    <label>План<textarea id="planText" rows="3"></textarea></label>
+                    <label>Блокеры<textarea id="blockersText" rows="3"></textarea></label>
+                </div>
+                <button id="sendStandup" class="btn">Отправить отчёт</button>
+
+                <h3 class="mt">Мои отчёты</h3>
+                <button id="refreshReports" class="btn secondary">Обновить</button>
+                <div id="reportsList" class="list"></div>
+
+                <!-- ✅ Менторский блок строго внутри вкладки -->
+                <h3 class="mt" id="mentorBlockTitle" style="display:none;">Отчёты сотрудников</h3>
+                <div id="mentorReports" class="list" style="display:none;"></div>
+            </section>
+
+
+            <section id="tab-documents" class="card hidden">
+                <h2>Регламенты</h2>
+                <div class="row">
+                    <input id="docQuery" placeholder="Поиск..." />
+                    <button id="searchDocs" class="btn secondary">Найти</button>
+                </div>
+                <div id="docsList" class="list"></div>
+            </section>
+
+            <section id="tab-profile" class="card hidden">
+                <h2>Профиль</h2>
+                <pre id="profileJson" class="code"></pre>
+            </section>
+
+            <section id="tab-admin" class="card hidden">
+                <h2>Админка</h2>
+
+                <h3>Отделы</h3>
+                <div class="row">
+                    <input id="newDeptName" placeholder="Название отдела..." />
+                    <button id="createDeptBtn" class="btn secondary">Добавить</button>
+                    <button id="refreshDeptsBtn" class="btn secondary">Обновить</button>
+                </div>
+                <div id="deptsList" class="list"></div>
+                <h3 class="mt">Назначить курс</h3>
+                <div class="grid">
+                <label>Пользователь
+                    <select id="assignUser"></select>
+                </label>
+                <label>Курс
+                    <select id="assignCourse"></select>
+                </label>
+                </div>
+                <button id="assignBtn" class="btn">Назначить</button>
+
+                <h3 class="mt">Создать пользователя</h3>
+                <div class="grid">
+                    <label>Email <input id="newUserEmail" placeholder="user@company.com" /></label>
+                    <label>ФИО <input id="newUserName" placeholder="Иван Иванов" /></label>
+                    <label>Пароль <input id="newUserPass" type="password" placeholder="min 6 символов" /></label>
+
+                    <label>Роль
+            <select id="newUserRole">
+              <option value="EMPLOYEE">EMPLOYEE</option>
+              <option value="MENTOR">MENTOR</option>
+              <option value="TEAM_LEAD">TEAM_LEAD</option>
+              <option value="LD_MANAGER">LD_MANAGER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </label>
+
+                    <label>Отдел
+            <select id="newUserDept"></select>
+          </label>
+                </div>
+
+                <button id="createUserBtn" class="btn">Создать</button>
+
+                <h3 class="mt">Пользователи</h3>
+                <div class="row">
+                    <button id="refreshUsersBtn" class="btn secondary">Обновить</button>
+                </div>
+                <div id="usersList" class="list"></div>
+            </section>
+
+        </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

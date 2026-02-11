@@ -147,7 +147,9 @@ class LessonCompletion(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), index=True)
-    completed_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    completed_at: Mapped[datetime] = mapped_column(default=datetime.now)
+
 
     user = relationship("User")
     lesson = relationship("Lesson")
+

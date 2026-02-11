@@ -1,20 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.deps import require_roles
-from app.models.core import Course, Lesson, Enrollment, LessonCompletion
+from app.models.core import Course, Lesson, Enrollment, LessonCompletion, VideoProgress
 from app.models.enums import Role, EnrollmentStatus
-from app.schemas.my_courses import MyCourseOut, LessonOut, CompleteLessonIn
+from app.schemas.my_courses import MyCourseOut, LessonOut, CompleteLessonIn, LessonDetailOut, VideoProgressIn
 
 router = APIRouter()
 
+
 @router.get("", response_model=list[MyCourseOut])
 async def my_courses(
-    session: AsyncSession = Depends(get_session),
-    me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value, Role.LD_MANAGER.value)),
+        session: AsyncSession = Depends(get_session),
+        me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value,
+                                 Role.LD_MANAGER.value)),
 ):
+    """Получить список всех курсов пользователя с уроками"""
     # enrollments пользователя
     enrolls = (
         await session.execute(
@@ -67,7 +70,7 @@ async def my_courses(
         done = sum(1 for l in ls_list if l.id in completed_set)
         progress = int((done / total) * 100) if total else 0
 
-        # обновим статус по прогрессу (по ТЗ: завершено = read-only)
+        # обновим статус по прогрессу
         if progress >= 100:
             e.status = EnrollmentStatus.COMPLETED.value
             e.progress_percent = 100
@@ -103,17 +106,145 @@ async def my_courses(
     return out
 
 
-@router.post("/complete_lesson")
-async def complete_lesson(
-    payload: CompleteLessonIn,
-    session: AsyncSession = Depends(get_session),
-    me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value, Role.LD_MANAGER.value)),
+# ========== ВИДЕОПЛЕЕР: ПОЛУЧИТЬ ДЕТАЛИ УРОКА ==========
+
+@router.get("/lessons/{lesson_id}", response_model=LessonDetailOut)
+async def get_lesson_details(
+        lesson_id: int,
+        session: AsyncSession = Depends(get_session),
+        me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value,
+                                 Role.LD_MANAGER.value)),
 ):
+    """Получить полную информацию об уроке (для плеера)"""
+    # Получаем урок
+    lesson = await session.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+
+    # Проверяем, открыт ли этот урок (пройден ли предыдущий)
+    if lesson.order > 1:
+        prev_lesson_query = await session.execute(
+            select(LessonCompletion).join(Lesson).where(
+                Lesson.course_id == lesson.course_id,
+                Lesson.order == lesson.order - 1,
+                LessonCompletion.user_id == me.id
+            )
+        )
+        if not prev_lesson_query.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Предыдущий урок не завершен")
+
+    # Получаем сохраненный прогресс видео
+    progress_query = await session.execute(
+        select(VideoProgress).where(
+            VideoProgress.lesson_id == lesson_id,
+            VideoProgress.user_id == me.id
+        )
+    )
+    progress = progress_query.scalar_one_or_none()
+
+    # Проверяем, завершен ли урок совсем
+    completion_query = await session.execute(
+        select(LessonCompletion).where(
+            LessonCompletion.lesson_id == lesson_id,
+            LessonCompletion.user_id == me.id
+        )
+    )
+    is_completed = completion_query.scalar_one_or_none() is not None
+
+    return {
+        "id": lesson.id,
+        "title": lesson.title,
+        "video_url": lesson.video_url,
+        "content": lesson.content,
+        "order": lesson.order,
+        "current_position_sec": progress.position_sec if progress else 0,
+        "is_completed": is_completed
+    }
+
+
+# ========== ВИДЕОПЛЕЕР: ПОЛУЧИТЬ ПРОГРЕСС ==========
+
+@router.get("/lessons/{lesson_id}/progress")
+async def get_lesson_progress(
+        lesson_id: int,
+        session: AsyncSession = Depends(get_session),
+        me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value,
+                                 Role.LD_MANAGER.value)),
+):
+    """Получить сохраненный прогресс просмотра видео"""
+    progress = (
+        await session.execute(
+            select(VideoProgress).where(
+                VideoProgress.user_id == me.id,
+                VideoProgress.lesson_id == lesson_id
+            )
+        )
+    ).scalar_one_or_none()
+
+    if not progress:
+        return {"position_sec": 0, "watched_percent": 0}
+
+    return {
+        "position_sec": progress.position_sec,
+        "watched_percent": progress.watched_percent
+    }
+
+
+# ========== ВИДЕОПЛЕЕР: ОБНОВИТЬ ПРОГРЕСС ==========
+
+@router.post("/lessons/{lesson_id}/progress")
+async def save_lesson_progress(
+        lesson_id: int,
+        data: VideoProgressIn,
+        session: AsyncSession = Depends(get_session),
+        me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value,
+                                 Role.LD_MANAGER.value)),
+):
+    """Сохранить прогресс просмотра видео (вызывается каждые 5-10 сек)"""
+
+    # Пытаемся найти существующую запись
+    query = select(VideoProgress).where(
+        VideoProgress.lesson_id == lesson_id,
+        VideoProgress.user_id == me.id
+    )
+    result = await session.execute(query)
+    progress = result.scalar_one_or_none()
+
+    if progress:
+        # Обновляем существующий прогресс
+        progress.position_sec = data.position_sec
+        # watched_percent только растет (защита от читерства)
+        progress.watched_percent = max(progress.watched_percent, data.watched_percent)
+    else:
+        # Создаем новую запись
+        new_progress = VideoProgress(
+            user_id=me.id,
+            lesson_id=lesson_id,
+            position_sec=data.position_sec,
+            watched_percent=data.watched_percent
+        )
+        session.add(new_progress)
+
+    await session.commit()
+    return {"status": "ok"}
+
+
+# ========== ЗАВЕРШИТЬ УРОК ==========
+
+@router.post("/complete_lesson")
+async def complete_lesson_endpoint(
+        payload: CompleteLessonIn,
+        session: AsyncSession = Depends(get_session),
+        me=Depends(require_roles(Role.ADMIN.value, Role.MENTOR.value, Role.EMPLOYEE.value, Role.TEAM_LEAD.value,
+                                 Role.LD_MANAGER.value)),
+):
+    """Отметить урок как завершенный (вызывается при клике 'Далее')"""
+
     lesson = (await session.execute(select(Lesson).where(Lesson.id == payload.lesson_id))).scalar_one_or_none()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # проверим, что курс назначен пользователю
+    # Проверим, что курс назначен пользователю
     enr = (
         await session.execute(
             select(Enrollment).where(Enrollment.user_id == me.id, Enrollment.course_id == lesson.course_id)
@@ -132,12 +263,53 @@ async def complete_lesson(
     ).scalar_one_or_none()
 
     if payload.completed:
+        # Отмечаем как пройденный
         if not existing:
             session.add(LessonCompletion(user_id=me.id, lesson_id=lesson.id))
             await session.commit()
+
+            # Пересчитываем прогресс курса
+            await recalculate_course_progress(session, me.id, lesson.course_id)
     else:
+        # Снимаем отметку
         if existing:
             await session.delete(existing)
             await session.commit()
 
+            # Пересчитываем прогресс курса
+            await recalculate_course_progress(session, me.id, lesson.course_id)
+
     return {"ok": True}
+
+
+# ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ПЕРЕСЧЕТ ПРОГРЕССА ==========
+
+async def recalculate_course_progress(session: AsyncSession, user_id: int, course_id: int):
+    """Пересчитывает прогресс курса на основе завершенных уроков"""
+
+    # Считаем общее количество уроков в курсе
+    total_lessons_res = await session.execute(
+        select(func.count(Lesson.id)).where(Lesson.course_id == course_id)
+    )
+    total_count = total_lessons_res.scalar() or 0
+
+    # Считаем сколько уроков юзер прошел в этом курсе
+    completed_lessons_res = await session.execute(
+        select(func.count(LessonCompletion.id))
+        .join(Lesson, Lesson.id == LessonCompletion.lesson_id)
+        .where(Lesson.course_id == course_id, LessonCompletion.user_id == user_id)
+    )
+    completed_count = completed_lessons_res.scalar() or 0
+
+    # Считаем процент
+    new_percent = int((completed_count / total_count) * 100) if total_count > 0 else 0
+
+    # Обновляем таблицу Enrollments
+    await session.execute(
+        update(Enrollment)
+        .where(Enrollment.user_id == user_id, Enrollment.course_id == course_id)
+        .values(progress_percent=new_percent)
+    )
+
+    await session.commit()
+

@@ -167,7 +167,6 @@ function setMyFilter(name) {
 
 function renderMyCourses() {
     const list = filterMyCourses(myCoursesCache);
-
     renderList($("myCoursesList"), list, (c) => {
         const d = document.createElement("div");
 
